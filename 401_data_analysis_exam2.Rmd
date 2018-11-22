@@ -1,0 +1,253 @@
+---
+title: __Multiple Linear Regression Model__
+header-includes:
+    - \usepackage{setspace}\doublespacing
+    - \usepackage{booktabs}
+    - \usepackage{longtable}
+    - \usepackage{array}
+    - \usepackage{multirow}
+    - \usepackage[table]{xcolor}
+    - \usepackage{wrapfig}
+    - \usepackage{float}
+    - \usepackage{colortbl}
+    - \usepackage{pdflscape}
+    - \usepackage{tabu}
+    - \usepackage{threeparttable}
+    - \usepackage{threeparttablex}
+    - \usepackage[normalem]{ulem}
+    - \usepackage{makecell}
+geometry: margin=2.5cm
+output: pdf_document
+---
+
+
+Name : Jae Kang \
+Andrew ID: jkang2 \
+Collaborated with: \
+Date : October 8, 2018 
+
+```{r echo=FALSE, results='hide', message=FALSE}
+set.seed(123345)
+library(knitr)
+housing_data = read.csv("manhattan.csv", header=TRUE)
+dim(housing_data)
+```
+
+```{r echo=FALSE, results='hide', message=FALSE}
+income = housing_data$Income
+gender = housing_data$Gender
+age = housing_data$Age 
+ethnic = as.factor(housing_data$Ethnic) 
+health = housing_data$Health 
+heat_breaks = housing_data$HeatBreaks 
+mice_rats = housing_data$MiceRats
+cracks_holes = housing_data$CracksHoles
+broken_plaster = housing_data$BrokenPlaster
+water_leakage = housing_data$WaterLeakage
+maintenance_def = housing_data$MaintenanceDef
+```
+
+```{r echo=FALSE}
+#income
+summary(income)
+sd(income)
+#gender (male or female)
+table(gender)
+#age 
+summary(age)
+sd(age)
+#ethnicity 
+table(ethnic)
+#health (self-reported score)
+summary(health)
+sd(health)
+#heat breaks
+table(heat_breaks)
+sd(heat_breaks)
+#micerats 
+table(mice_rats)
+#cracksholes
+table(cracks_holes)
+#broken plaster
+table(broken_plaster)
+#water leakage
+table(water_leakage)
+#maintenance deficiencies
+table(maintenance_def)
+sd(maintenance_def)
+```
+
+```{r echo=FALSE, fig.width=4, fig.height=4}
+#univariate EDA on just the response variable income
+par(mfrow=c(2,2))
+hist(income, main="Income", breaks=50)
+barplot(table(gender), main="Gender")
+hist(age, main="Age", breaks=50)
+barplot(table(ethnic), main="Ethnicity / Race")
+hist(health, main="Self reported Health", breaks=100)
+hist(heat_breaks, main="# of Heat Breaks", breaks=100)
+barplot(table(mice_rats), main="Has Mice / Rats")
+barplot(table(cracks_holes), main="Has Cracks / Holes")
+barplot(table(broken_plaster), main="Has Broken Plaster")
+barplot(table(water_leakage), main="Has Water Leakage")
+hist(maintenance_def, main="Maintenance Deficiencies", breaks=100)
+```
+
+```{r echo=FALSE, fig.width=4, fig.height=4}
+par(mfrow=c(2,2))
+#multivariate EDA
+
+#for gender
+boxplot(income~gender, main="Gender v. Income")
+
+#for age 
+plot(x=age, y=income, main="Age v. Income", xlab="Age (years)", ylab="Income")
+
+#for ethnicity
+boxplot(income~ethnic, main="Ethnicity v. Income")
+
+#for health
+plot(x=health, y=income, main="Health v. Income", xlab="Health (self-reported score)", ylab="Income")
+
+#for heat equipment breaks 
+plot(x=heat_breaks, y=income, main="Heat Breaks v. Income", xlab="Heat Breaks (number of equipment breakdowns since 2002", ylab="Income")
+
+#for indicator variable for mice and rats 
+boxplot(income~mice_rats, main="Has Mice / Rats v. Income")
+
+#for indicator variable for cracks and holes 
+boxplot(income~cracks_holes, main="Has Cracks / Holes v. Income")
+
+#for indicator variable for broken plaster 
+boxplot(income~broken_plaster, main="Has Broken Plaster v. Income")
+
+#for indicator variable for water leakage 
+boxplot(income~water_leakage, main="Has Water Leakage v. Income")
+
+#for maintenance deficiencies
+plot(x=maintenance_def, y=income, main="Maintenance Deficiencies v. Income", xlab="Maintenance deficiences between 2002 and 2005", ylab="Income")
+
+```
+\
+## EDA ##
+Before mentioning anything else, there were blaring outliers in the data were in the household income response variable where there were extreme outliers with household incomes in the millions. This could also be observed in the multivariate EDA section where we plotted the boxplot between covariates such as the ethnicity categorical variable and household income. There were clearly some extreme outliers for income across several ethnicities and thus it was diagnosed that these outlier data points would not contribute to the model fit and will be removed in the initial modeling phase.
+\
+However, in the initial data there are 3373 households that have been sampled as instances for this survey and with regards to ethnicity the overwhelming majority of them are either Caucasian or Hispanic. The age distribution is pretty evenly distributed from the mid twenties onwards until the mid fifties where the number of households with ages above 60 start to decline. There are approximately 300 more males than females and the average (mean) number of heat equipment breakdowns since 2002 is around 1. In addition, the number of maintenance deficiencies between 2002 and 2005 averaged around 1.5 with most households having 1 and some households having several with an outlier of 5 maintenance deficiencies occurring more often than others. The categorical variables on demographic measurements (having water leakage, mice or rats, broken plaster, and cracks and holes covariates) were answered with a majority No. 
+\
+The multivariate EDA process also showed the blaring outliers that skewed the box plots and scatter plots in an extreme manner. Not much could be observed from the multivariate EDA process because the skewed nature of these boxplots and scatterplots but these outliers will be dealt with (through data cleaning) in the next phase of the report.
+\
+## Initial Modeling & Diagnostics ##
+
+```{r echo=FALSE}
+first_model = lm(log(income) ~ age + gender + ethnic + health + heat_breaks + mice_rats + cracks_holes + broken_plaster + water_leakage + maintenance_def)
+cooks_d = cooks.distance(first_model)
+plot(cooks_d, pch="*", cex=2, main="Influential Obs by Cooks distance")  # plot cook's distance
+abline(h = 4*mean(cooks_d, na.rm=T), col="red")  # add cutoff line
+text(x=1:length(cooks_d)+1, y=cooks_d, labels=ifelse(cooks_d>4*mean(cooks_d, na.rm=T),names(cooks_d),""), col="red")
+# code and instructions from http://r-statistics.co/Outlier-Treatment-With-R.html
+```
+\
+In the initial modeling phase, we first fit the multiple linear regression model with a log transformation on income with all the covariates considered. The covariates treated as discrete categorical variables were Ethnicity (because there were several categories of Ethnicity that could obviously not be considered as numeric values), WaterLeakage, BrokenPlaster, CracksHoles, Gender, and MiceRats. We will test the very basic multiple regression model first and add or remove terms as necessary. 
+\
+Note that there are truncated values and NaN values produced because of the log transformation on the income response variables that might have produced negative log values (negative incomes in our dataset). These values will be dropped along with the datapoints deemed as outliers or not contributing to the model. We will deem datapoints outliers by using Cook's distance as a standard and we will remove all the datapoints that are 4 times the mean Cook distance of all the data.
+\
+154 datapoints deemed as either outliers (by the average Cook distance measurement) or truncated data were removed because they did not add anything specific to the multiple regression model we were attempting to fit. These values have a tendency to skew the regression line towards these outliers or truncated data points that don't tell us anything meaningful about the pattern or relationship between the housing covariates and income. 
+
+```{r echo=FALSE}
+par(mfrow=c(2,2))
+outliers = as.numeric(names(cooks_d)[(cooks_d > 4*mean(cooks_d, na.rm=T))]) 
+# outliers that are defined to be 4 times the mean cook distance 
+cleaned_data = housing_data[-outliers,]
+cleaned_data$Ethnic = relevel(cleaned_data$Ethnic, ref="Caucasian") 
+cleaned_data = subset(cleaned_data, cleaned_data$Income > 0)
+#changing the reference point / baseline value of the Ethnic categorical variable to Caucasian
+dim(cleaned_data)
+
+# now show how the data got cleaned through one histogram of the income variable and one scatterplot of Age v. Income
+
+plot(x=cleaned_data$Age, y=cleaned_data$Income, main="Age v. Income", xlab="Age (years)", ylab="Income")
+hist(cleaned_data$Income, main="Income", breaks=50)
+```
+\
+After cleaning the data and removing the outliers/missing values, the histogram for income looks more evenly distributed and the scatterplot for Age v. Income is not as skewed. Therefore, we can conclude that the data has been cleaned effectively and removed of datapoints that may affect our model negatively. 
+\
+In addition, for the categorical Ethnicity variable the reference point was changed to Caucasian so that it would be easier to test the hypothesis that the average household income is different for Caucasian and Hispanic households. 
+
+
+```{r echo=FALSE}
+par(mfrow=c(2,2))
+model_wo_outliers = lm(log(cleaned_data$Income) ~ cleaned_data$Gender + cleaned_data$Age + cleaned_data$Ethnic + cleaned_data$Health + cleaned_data$HeatBreaks + cleaned_data$MiceRats + cleaned_data$CracksHoles + cleaned_data$BrokenPlaster + cleaned_data$WaterLeakage + cleaned_data$MaintenanceDef)
+plot(model_wo_outliers)
+summary(model_wo_outliers)
+```
+Now in our new multiple linear regression model fitted with the cleaned data, we can observe in the summary that there are several coefficient estimates with non-significant p-values at the 0.05 level. These would be CracksHoles, BrokenPlaster, MaintenanceDef which have p-values of 0.4074, 0.3905 and 0.8295 respectively (we will omit WaterLeakage because we need to test its relationship with age and income later). Therefore, we want to test the null hypothesis that all these slope coefficients for the variables mentioned above are zero. We will do this through a F-test using the anova table and a null model fit without the variables CracksHoles, BrokenPlaster and MaintenanceDef. 
+```{r echo=FALSE}
+null_model = lm(log(cleaned_data$Income) ~ cleaned_data$Gender + cleaned_data$Age + cleaned_data$Ethnic + cleaned_data$Health + cleaned_data$HeatBreaks + cleaned_data$MiceRats + cleaned_data$WaterLeakage)
+anova(null_model, model_wo_outliers)
+```
+Note that in our second model (the null model without the variables that we are testing as zero), the p-value for the F statistic is shown as much greater than 0.05, thus at the 0.05 significance level, we cannot reject the null hypothesis that the slope coefficients for CracksHoles, BrokenPlaster and MaintenanceDef are zero. Therefore, we will interpret this information as the fact that fitting the slopes for the CracksHoles, BrokenPlaster and MaintenanceDef variables as non-zero will not reduce the mean-squared error of the model more than we would expect by just random noise and thus this tells us that they do not contribute much to the prediction of household income. Therefore, we will safely use this assumption to delete CracksHoles, BrokenPlaster and MaintenanceDef from our model. 
+\
+In addition, to test the second hypothesis that the relationship between age and household income is different depending on whether or not water leakage has occurred in the apartment, (for households whose other variables are constant), we must include an interaction variable and slope coefficient fit to test this efficiently. Thus, we will also fit a model with the interaction variable between age and water leakage. 
+\
+```{r echo=FALSE}
+cleaned_model = lm(log(cleaned_data$Income) ~ cleaned_data$Gender + (cleaned_data$Age+cleaned_data$WaterLeakage)^2 + cleaned_data$Ethnic + cleaned_data$Health + cleaned_data$HeatBreaks + cleaned_data$MiceRats)
+```
+\
+```{r echo=FALSE}
+par(mfrow=c(2,2))
+summary(cleaned_model)
+plot(cleaned_model)
+```
+
+Testing the assumptions of our model, we can observe that by our residuals plot that the linearity assumptions hold because our residuals v. fitted values plot is centered around zero. In addition, homoskedascity holds because there are no extreme outliers and the scattered plots are fairly balanced. Also since there is no pattern across observations from the abline in the residuals v. fitted values and we can assume that the observations are independent and identically distributed across the datapoints. Finally, notice that due to the qqplot's points being consistent with the line, the Gaussian noise assumptions hold for this model as well. 
+\
+## Results ## 
+
+Now addressing the first hypothesis, we will use the model fit before. 
+\
+Null Hypothesis $\mathcal{H}_{0}$ :
+\ The expected difference between average Caucasian household incomes and average Hispanic household incomes are the same when all the other demographic measurements and housing quality characteristics are constant. 
+\
+Alternate Hypothesis $\mathcal{H}_{A}$ : 
+\ The expected difference between average Caucasian household incomes and average Hispanic household incomes are different when all the other demographic measurements and housing quality characteristics are constant. 
+\
+Test statistic : $\beta_{j}$ where $\beta_{j}$ = the fitted slope coefficient for the Ethnic variable in cleaned_model
+
+\ Note that Caucasian is the reference point so we just need to observe the Hispanic row, and when we do observe cleaned_model's EthnicHispanic's p-value, it is significant at the 0.05 level. Therefore, we can reject the null hypothesis and confidently state that the expected difference between average Caucasian household incomes and average Hispanic household incomes are different. In other words, under the null hypothesis that average Caucasian household incomes and average Hispanic household incomes are the same, it is very unlikely (< $2.0 x 10^{-16}$) that we will observe this fitted slope coefficient from the model solely by chance. Thus, the effect that a change from a Caucasian household to a Hispanic household will have on household income is significant and we should not remove this from the model. 
+\
+The second hypothesis: 
+\
+Null Hypothesis $\mathcal{H}_{0}$ :
+\ The expected difference that an extra year in age will have on household income is the same depending on whether or not a water leakage has occurred in the apartment, assuming that all other household characterics are the same. 
+Alternative Hypothesis $\mathcal{H}_{A}$ : 
+\ The expected difference that an extra year in age will have on household income is different depending on whether or not a water leakage has occurred in the apartment, assuming that all other household characteristics are the same. 
+\ Test statistic : $\beta_{i}$ where $\beta_{i}$ is the fitted slope coefficient for the interaction variable between Age and WaterLeakage. 
+
+
+However, observe that the interaction variable for age and water leakage has a significant p-value at the 0.05 level (0.99395) and thus we cannot reject the null hypothesis that the effect that a water leakage may have on the relationship between age and household income is zero. Therefore, we will assume that the water leakage and age interaction variable's slope coefficient is negligible and will omit it in the model. 
+\
+
+```{r echo=FALSE}
+confint(fit_model)
+#first_model (with outliers)
+#model_wo_outliers 
+# cleaned_model with WaterLeakage and WaterLeakage interaction effect
+#cleaned_model
+# best? hypothesized model without WaterLeakage and Age, WaterLeakage interaction effect
+fit_model = lm(log(cleaned_data$Income) ~ cleaned_data$Gender + cleaned_data$Age + cleaned_data$Ethnic + cleaned_data$Health + cleaned_data$HeatBreaks + cleaned_data$MiceRats)
+#summary(fit_model)
+fit_model_deg_2 = lm(log(cleaned_data$Income) ~ cleaned_data$Gender + poly(cleaned_data$Age, degree=2) + cleaned_data$Ethnic + cleaned_data$Health + cleaned_data$HeatBreaks + cleaned_data$MiceRats)
+fit_model_deg_3 = lm(log(cleaned_data$Income) ~ cleaned_data$Gender + poly(cleaned_data$Age, degree=3) + cleaned_data$Ethnic + cleaned_data$Health + cleaned_data$HeatBreaks + cleaned_data$MiceRats)
+fit_model_deg_4 = lm(log(cleaned_data$Income) ~ cleaned_data$Gender + poly(cleaned_data$Age, degree=4) + cleaned_data$Ethnic + cleaned_data$Health + cleaned_data$HeatBreaks + cleaned_data$MiceRats)
+fit_model_deg_5 = lm(log(cleaned_data$Income) ~ cleaned_data$Gender + poly(cleaned_data$Age, degree=5) + cleaned_data$Ethnic + cleaned_data$Health + cleaned_data$HeatBreaks + cleaned_data$MiceRats)
+fit_model_deg_6 = lm(log(cleaned_data$Income) ~ cleaned_data$Gender + poly(cleaned_data$Age, degree=6) + cleaned_data$Ethnic + cleaned_data$Health + cleaned_data$HeatBreaks + cleaned_data$MiceRats)
+fit_model_deg_7 = lm(log(cleaned_data$Income) ~ cleaned_data$Gender + poly(cleaned_data$Age, degree=7) + cleaned_data$Ethnic + cleaned_data$Health + cleaned_data$HeatBreaks + cleaned_data$MiceRats)
+model_array = (list(first_model, model_wo_outliers, cleaned_model, fit_model, fit_model_deg_2, fit_model_deg_3, 
+                    fit_model_deg_4, fit_model_deg_5, fit_model_deg_6, fit_model_deg_7))
+LOOCV = function (out) { 
+  return(mean(((LOS - fitted(out))/(1-hatvalues(out)))^2)) } 
+LOOCV_array = sapply(model_array, LOOCV)
+plot(1:10,LOOCV_array,type="l",lwd=3)
+```
+
+
